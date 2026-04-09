@@ -73,12 +73,6 @@ if __name__ == "__main__":
         help="Path to save the robot motion.",
     )
 
-    parser.add_argument(
-        "--motion_fps",
-        default=30,
-        type=int,
-    )
-
     args = parser.parse_args()
 
     if args.save_path is not None:
@@ -88,7 +82,7 @@ if __name__ == "__main__":
         qpos_list = []
 
     # Load SMPLX trajectory
-    lafan1_data_frames, actual_human_height = load_bvh_file(
+    lafan1_data_frames, actual_human_height, motion_fps = load_bvh_file(
         args.bvh_file, format=args.format
     )
 
@@ -99,16 +93,12 @@ if __name__ == "__main__":
         actual_human_height=actual_human_height,
     )
 
-    motion_fps = args.motion_fps
-
     robot_motion_viewer = RobotMotionViewer(
         robot_type=args.robot,
-        motion_fps=motion_fps,
+        motion_fps=round(motion_fps),
         transparent_robot=0,
         record_video=args.record_video,
         video_path=args.video_path,
-        # video_width=2080,
-        # video_height=1170
     )
 
     # FPS measurement variables
@@ -116,7 +106,7 @@ if __name__ == "__main__":
     fps_start_time = time.time()
     fps_display_interval = 2.0  # Display FPS every 2 seconds
 
-    print(f"mocap_frame_rate: {motion_fps}")
+    print(f"source mocap FPS: {motion_fps}")
 
     # Create tqdm progress bar for the total number of frames
     pbar = tqdm(total=len(lafan1_data_frames), desc="Retargeting")
@@ -131,7 +121,7 @@ if __name__ == "__main__":
         current_time = time.time()
         if current_time - fps_start_time >= fps_display_interval:
             actual_fps = fps_counter / (current_time - fps_start_time)
-            print(f"Actual rendering FPS: {actual_fps:.2f}")
+            tqdm.write(f"Actual rendering FPS: {actual_fps:.2f}")
             fps_counter = 0
             fps_start_time = current_time
 
@@ -185,7 +175,7 @@ if __name__ == "__main__":
         }
         with open(args.save_path, "wb") as f:
             pickle.dump(motion_data, f)
-        print(f"Saved to {args.save_path}")
+        tqdm.write(f"Saved to {args.save_path}")
 
     # Close progress bar
     pbar.close()

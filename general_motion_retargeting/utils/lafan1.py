@@ -44,4 +44,4 @@ def load_bvh_file(bvh_file, format="lafan1"):
     # human_height = human_height + 0.2  # cm to m
     human_height = 1.75  # cm to m
 
-    return frames, human_height
+    return frames, human_height, data.fps
