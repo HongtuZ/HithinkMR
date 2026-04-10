@@ -110,8 +110,8 @@ if __name__ == "__main__":
         )
         body_names = kinematics_model.body_names
 
-        HEIGHT_ADJUST = False
-        PERFRAME_ADJUST = False
+        HEIGHT_ADJUST = True
+        PERFRAME_ADJUST = True
         if HEIGHT_ADJUST:
             body_pos, _ = kinematics_model.forward_kinematics(
                 torch.from_numpy(root_pos).to(device=device, dtype=torch.float),
