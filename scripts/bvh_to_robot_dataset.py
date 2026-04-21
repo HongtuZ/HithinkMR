@@ -1,10 +1,8 @@
 import argparse
-import os
-import mujoco as mj
 import numpy as np
 from tqdm import tqdm
 import torch
-import pickle
+import joblib
 
 from general_motion_retargeting.utils.lafan1 import load_bvh_file
 from general_motion_retargeting.kinematics_model import KinematicsModel
@@ -55,17 +53,13 @@ if __name__ == "__main__":
     file_paths = src_folder.rglob("*.bvh")
     for file_path in tqdm(sorted(file_paths), desc="Retargeting files"):
         # get the target file path
-        tgt_file_path = tgt_folder / file_path.relative_to(src_folder).with_suffix(
-            ".pkl"
-        )
+        tgt_file_path = tgt_folder / file_path.relative_to(src_folder).with_suffix(".pkl")
 
         if tgt_file_path.exists() and not args.override:
             print(f"Skipping {str(file_path)} because {str(tgt_file_path)} exists")
             continue
         try:
-            lafan1_data_frames, actual_human_height, motion_fps = load_bvh_file(
-                str(file_path), format=args.format
-            )
+            lafan1_data_frames, actual_human_height, motion_fps = load_bvh_file(str(file_path), format=args.format)
         except Exception as e:
             print(f"Error loading {str(file_path)}: {e}")
             continue
@@ -94,8 +88,7 @@ if __name__ == "__main__":
         kinematics_model = KinematicsModel(retarget.xml_file, device=device)
 
         root_pos = qpos_list[:, :3]
-        root_rot = qpos_list[:, 3:7]
-        root_rot[:, [0, 1, 2, 3]] = root_rot[:, [1, 2, 3, 0]]
+        root_rot = qpos_list[:, 3:7]  # wxyz
         dof_pos = qpos_list[:, 7:]
         num_frames = root_pos.shape[0]
 
@@ -115,7 +108,7 @@ if __name__ == "__main__":
         if HEIGHT_ADJUST:
             body_pos, _ = kinematics_model.forward_kinematics(
                 torch.from_numpy(root_pos).to(device=device, dtype=torch.float),
-                torch.from_numpy(root_rot).to(device=device, dtype=torch.float),
+                torch.from_numpy(root_rot[:, [1, 2, 3, 0]]).to(device=device, dtype=torch.float),
                 torch.from_numpy(dof_pos).to(device=device, dtype=torch.float),
             )
             ground_offset = 0.00
@@ -129,15 +122,15 @@ if __name__ == "__main__":
 
         motion_data = {
             "fps": motion_fps,
-            "root_pos": root_pos,
-            "root_rot": root_rot,
-            "dof_pos": dof_pos,
-            "local_body_pos": local_body_pos.detach().cpu().numpy(),
-            "link_body_list": body_names,
+            "root_pos_w": root_pos,
+            "root_quat_w": root_rot,
+            "joint_pos": dof_pos,
+            "body_pos_b": local_body_pos.detach().cpu().numpy(),
+            "body_names": body_names,
+            "joint_names": list(retarget.robot_dof_names.keys()),
         }
 
         tgt_file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(str(tgt_file_path), "wb") as f:
-            pickle.dump(motion_data, f)
+        joblib.dump(motion_data, str(tgt_file_path))
 
-    print("Done. saved to ", tgt_folder)
+    print("Done. saved to ", str(tgt_folder))
