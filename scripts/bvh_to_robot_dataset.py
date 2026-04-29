@@ -10,7 +10,6 @@ from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from rich import print
 from pathlib import Path
 
-
 if __name__ == "__main__":
     HERE = Path(__file__).parent
 
@@ -96,7 +95,7 @@ if __name__ == "__main__":
         identity_root_pos = torch.zeros((num_frames, 3), device=device)
         identity_root_rot = torch.zeros((num_frames, 4), device=device)
         identity_root_rot[:, -1] = 1.0
-        local_body_pos, _ = kinematics_model.forward_kinematics(
+        local_body_pos, local_body_quat = kinematics_model.forward_kinematics(
             identity_root_pos,
             identity_root_rot,
             torch.from_numpy(dof_pos).to(device=device, dtype=torch.float),
@@ -125,9 +124,10 @@ if __name__ == "__main__":
             "root_pos_w": root_pos,
             "root_quat_w": root_rot,
             "joint_pos": dof_pos,
-            "body_pos_b": local_body_pos.detach().cpu().numpy(),
-            "body_names": body_names,
             "joint_names": list(retarget.robot_dof_names.keys()),
+            "body_pos_b": local_body_pos.detach().cpu().numpy(),
+            "body_quat_b": local_body_quat.detach().cpu().numpy()[..., [3, 0, 1, 2]],  # xyzw -> wxyz
+            "body_names": body_names,
         }
 
         tgt_file_path.parent.mkdir(parents=True, exist_ok=True)
